@@ -27,6 +27,8 @@ class _MyAppState extends State<MyApp> {
   Future<void> initPlatformState() async {
     String platformVersion;
     int result = 0;
+
+    PlatformProxy.init();
     // Platform messages may fail, so we use a try/catch PlatformException.
     try {
       platformVersion = await PlatformProxy.platformVersion;

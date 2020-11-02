@@ -64,6 +64,48 @@ static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
   platform_proxy_plugin_handle_method_call(plugin, method_call);
 }
 
+static gboolean timer_callback(gpointer fl_channel) {
+  static int count = 0;
+  fprintf(stderr, "[linux] %s called(%d)\n", __func__, count);
+
+  switch (count++) {
+    case 0: {
+      g_autoptr(FlValue) args = fl_value_new_map();
+      fl_value_set_string_take(args, "int_arg", fl_value_new_int(1));
+      fl_value_set_string_take(args, "double_arg", fl_value_new_float(2.22));
+      fl_value_set_string_take(args, "string_arg", fl_value_new_string("3"));
+      fl_method_channel_invoke_method(
+          (FlMethodChannel*)fl_channel, "invokeDartMethodFromLinux", args,
+          nullptr,
+          [](GObject* object, GAsyncResult* result, gpointer user_data) {
+            g_autoptr(GError) error = NULL;
+            g_autoptr(FlMethodResponse) response =
+                fl_method_channel_invoke_method_finish(
+                    FL_METHOD_CHANNEL(object), result, &error);
+            if (response == NULL) {
+              g_warning("Failed to call method: %s", error->message);
+              return;
+            }
+
+            g_autoptr(FlValue) value =
+                fl_method_response_get_result(response, &error);
+            if (response == NULL) {
+              g_warning("Method returned error: %s", error->message);
+              return;
+            }
+            fl_value_ref(value);
+
+            fprintf(stderr, "[linux] invokeDartMethodFromLinux returns %ld\n",
+                    fl_value_get_int(value));
+          },
+          nullptr);
+      return TRUE;
+    }
+    default:
+      return FALSE;
+  }
+}
+
 void platform_proxy_plugin_register_with_registrar(FlPluginRegistrar* registrar) {
   PlatformProxyPlugin* plugin = PLATFORM_PROXY_PLUGIN(
       g_object_new(platform_proxy_plugin_get_type(), nullptr));
@@ -76,6 +118,7 @@ void platform_proxy_plugin_register_with_registrar(FlPluginRegistrar* registrar)
   fl_method_channel_set_method_call_handler(channel, method_call_cb,
                                             g_object_ref(plugin),
                                             g_object_unref);
+  g_timeout_add_seconds(1, timer_callback, g_object_ref(channel));
 
   g_object_unref(plugin);
 }
