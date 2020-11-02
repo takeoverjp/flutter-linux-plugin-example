@@ -12,6 +12,7 @@
 
 struct _PlatformProxyPlugin {
   GObject parent_instance;
+  FlMethodChannel* channel;
 };
 
 G_DEFINE_TYPE(PlatformProxyPlugin, platform_proxy_plugin, g_object_get_type())
@@ -48,6 +49,8 @@ static void platform_proxy_plugin_handle_method_call(
 }
 
 static void platform_proxy_plugin_dispose(GObject* object) {
+  PlatformProxyPlugin* self = PLATFORM_PROXY_PLUGIN(object);
+  g_clear_object(&self->channel);
   G_OBJECT_CLASS(platform_proxy_plugin_parent_class)->dispose(object);
 }
 
@@ -110,6 +113,7 @@ static gboolean timer_callback(gpointer user_data) {
       return TRUE;
     }
     default:
+      g_object_unref(fl_channel);
       return FALSE;
   }
 }
@@ -120,12 +124,12 @@ void platform_proxy_plugin_register_with_registrar(
       g_object_new(platform_proxy_plugin_get_type(), nullptr));
 
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
+  plugin->channel = fl_method_channel_new(
       fl_plugin_registrar_get_messenger(registrar),
       "xyz.takeoverjp.example/platform_proxy", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
-      channel, method_call_cb, g_object_ref(plugin), g_object_unref);
-  g_timeout_add_seconds(1, timer_callback, g_object_ref(channel));
+      plugin->channel, method_call_cb, g_object_ref(plugin), g_object_unref);
+  g_timeout_add_seconds(1, timer_callback, g_object_ref(plugin->channel));
 
   g_object_unref(plugin);
 }
