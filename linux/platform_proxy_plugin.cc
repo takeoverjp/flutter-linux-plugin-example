@@ -23,6 +23,7 @@ static void platform_proxy_plugin_handle_method_call(
   g_autoptr(FlMethodResponse) response = nullptr;
 
   const gchar* method = fl_method_call_get_name(method_call);
+  FlValue* args = fl_method_call_get_args(method_call);
 
   if (strcmp(method, "getPlatformVersion") == 0) {
     struct utsname uname_data = {};
@@ -30,6 +31,16 @@ static void platform_proxy_plugin_handle_method_call(
     g_autofree gchar *version = g_strdup_printf("Linux %s", uname_data.version);
     g_autoptr(FlValue) result = fl_value_new_string(version);
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+  } else if (strcmp(method, "invokeLinuxMethodFromDart") == 0) {
+    FlValue* fl_int_arg = fl_value_lookup_string(args, "int_arg");
+    FlValue* fl_double_arg = fl_value_lookup_string(args, "double_arg");
+    FlValue* fl_string_arg = fl_value_lookup_string(args, "string_arg");
+    int int_arg = fl_value_get_int(fl_int_arg);
+    double double_arg = fl_value_get_float(fl_double_arg);
+    const gchar* string_arg = fl_value_get_string(fl_string_arg);
+    int result = int_arg + double_arg + strtol(string_arg, NULL, 10);
+    g_autoptr(FlValue) fl_result = fl_value_new_int(result);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(fl_result));
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }
@@ -60,7 +71,7 @@ void platform_proxy_plugin_register_with_registrar(FlPluginRegistrar* registrar)
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel =
       fl_method_channel_new(fl_plugin_registrar_get_messenger(registrar),
-                            "platform_proxy",
+                            "xyz.takeoverjp.example/platform_proxy",
                             FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel, method_call_cb,
                                             g_object_ref(plugin),
