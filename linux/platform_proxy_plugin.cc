@@ -14,6 +14,7 @@ struct _PlatformProxyPlugin {
   GObject parent_instance;
   FlMethodChannel* method_channel;
   FlEventChannel* event_channel;
+  FlBasicMessageChannel* basic_message_channel;
 };
 
 G_DEFINE_TYPE(PlatformProxyPlugin, platform_proxy_plugin, g_object_get_type())
@@ -170,6 +171,35 @@ static FlMethodErrorResponse* event_channel_cancel_cb(FlEventChannel* channel,
   return NULL;
 }
 
+static void invoke_linux_method_by_pigeon (FlBasicMessageChannel* channel,
+                        FlValue* message,
+                        FlBasicMessageChannelResponseHandle* response_handle,
+                        gpointer user_data) {
+  FlValue* fl_int_arg = fl_value_lookup_string(message, "intArg");
+  FlValue* fl_double_arg = fl_value_lookup_string(message, "doubleArg");
+  FlValue* fl_string_arg = fl_value_lookup_string(message, "stringArg");
+  int int_arg = fl_value_get_int(fl_int_arg);
+  double double_arg = fl_value_get_float(fl_double_arg);
+  const gchar* string_arg = fl_value_get_string(fl_string_arg);
+
+  fprintf(stderr,
+          "[linux] invokeLinuxMethodFromPigeon called with {int_arg: %d, "
+          "double_arg: %f, string_arg: %s}\n",
+          int_arg, double_arg, string_arg);
+  int result = int_arg + double_arg + strtol(string_arg, NULL, 10);
+  fprintf(stderr, "[linux] invokeLinuxMethodFromPigeon returns %d\n", result);
+
+  g_autoptr(FlValue) response = fl_value_new_map();
+  g_autoptr(FlValue) fl_result = fl_value_new_map();
+  fl_value_set_string_take(fl_result, "result", fl_value_new_int(result));
+  fl_value_set_string_take(response, "result", fl_value_ref(fl_result));
+  g_autoptr(GError) error = NULL;
+  if (!fl_basic_message_channel_respond (channel, response_handle, response,
+                                         &error)) {
+    g_warning ("Failed to send channel response: %s", error->message);
+  }
+}
+
 void platform_proxy_plugin_register_with_registrar(
     FlPluginRegistrar* registrar) {
   PlatformProxyPlugin* plugin = PLATFORM_PROXY_PLUGIN(
@@ -190,6 +220,16 @@ void platform_proxy_plugin_register_with_registrar(
       FL_METHOD_CODEC(codec));
   fl_event_channel_set_stream_handlers(
       plugin->event_channel, event_channel_listen_cb, event_channel_cancel_cb,
+      nullptr, nullptr);
+
+  g_autoptr(FlStandardMessageCodec) message_codec = fl_standard_message_codec_new();
+  plugin->basic_message_channel = fl_basic_message_channel_new(
+      fl_plugin_registrar_get_messenger(registrar),
+      "dev.flutter.pigeon.PigeonPlatformProxy.invokeLinuxMethodByPigeon",
+      FL_MESSAGE_CODEC(message_codec));
+  fprintf(stderr, "[linux] basic_message_channel = %p\n", plugin->basic_message_channel);
+  fl_basic_message_channel_set_message_handler(
+      plugin->basic_message_channel, invoke_linux_method_by_pigeon,
       nullptr, nullptr);
 
   g_timeout_add_seconds(1, timer_callback, g_object_ref(plugin));
