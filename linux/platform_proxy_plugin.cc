@@ -12,12 +12,16 @@
 
 struct _PlatformProxyPlugin {
   GObject parent_instance;
-  FlMethodChannel* channel;
+  FlMethodChannel* method_channel;
+  FlEventChannel* event_channel;
 };
 
 G_DEFINE_TYPE(PlatformProxyPlugin, platform_proxy_plugin, g_object_get_type())
 
-static FlMethodResponse* get_platform_version(PlatformProxyPlugin* self, FlValue* args) {
+static bool is_send_events = false;
+
+static FlMethodResponse* get_platform_version(PlatformProxyPlugin* self,
+                                              FlValue* args) {
   struct utsname uname_data = {};
 
   uname(&uname_data);
@@ -27,7 +31,8 @@ static FlMethodResponse* get_platform_version(PlatformProxyPlugin* self, FlValue
   return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
 
-static FlMethodResponse* invoke_linux_method_from_dart(PlatformProxyPlugin* self, FlValue* args) {
+static FlMethodResponse* invoke_linux_method_from_dart(
+    PlatformProxyPlugin* self, FlValue* args) {
   FlValue* fl_int_arg = fl_value_lookup_string(args, "int_arg");
   FlValue* fl_double_arg = fl_value_lookup_string(args, "double_arg");
   FlValue* fl_string_arg = fl_value_lookup_string(args, "string_arg");
@@ -35,7 +40,10 @@ static FlMethodResponse* invoke_linux_method_from_dart(PlatformProxyPlugin* self
   double double_arg = fl_value_get_float(fl_double_arg);
   const gchar* string_arg = fl_value_get_string(fl_string_arg);
 
-  fprintf(stderr, "[linux] invokeLinuxMethodFromDart called with {int_arg: %d, double_arg: %f, string_arg: %s}\n", int_arg, double_arg, string_arg);
+  fprintf(stderr,
+          "[linux] invokeLinuxMethodFromDart called with {int_arg: %d, "
+          "double_arg: %f, string_arg: %s}\n",
+          int_arg, double_arg, string_arg);
   int result = int_arg + double_arg + strtol(string_arg, NULL, 10);
   fprintf(stderr, "[linux] invokeLinuxMethodFromDart returns %d\n", result);
 
@@ -63,7 +71,8 @@ static void platform_proxy_plugin_handle_method_call(
 
 static void platform_proxy_plugin_dispose(GObject* object) {
   PlatformProxyPlugin* self = PLATFORM_PROXY_PLUGIN(object);
-  g_clear_object(&self->channel);
+  g_clear_object(&self->event_channel);
+  g_clear_object(&self->method_channel);
   G_OBJECT_CLASS(platform_proxy_plugin_parent_class)->dispose(object);
 }
 
@@ -79,8 +88,8 @@ static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
   platform_proxy_plugin_handle_method_call(self, method_call);
 }
 
-static void invoke_dart_method_from_linux(FlMethodChannel* fl_channel,
-                                          int int_arg, double double_arg,
+static void invoke_dart_method_from_linux(FlMethodChannel* channel, int int_arg,
+                                          double double_arg,
                                           const gchar* string_arg) {
   g_autoptr(FlValue) args = fl_value_new_map();
   fl_value_set_string_take(args, "int_arg", fl_value_new_int(int_arg));
@@ -90,7 +99,7 @@ static void invoke_dart_method_from_linux(FlMethodChannel* fl_channel,
   fprintf(stderr, "[linux] invoke invokeDartMethodFromLinux\n");
 
   fl_method_channel_invoke_method(
-      fl_channel, "invokeDartMethodFromLinux", args, nullptr,
+      channel, "invokeDartMethodFromLinux", args, nullptr,
       [](GObject* object, GAsyncResult* result, gpointer user_data) {
         g_autoptr(GError) error = NULL;
         g_autoptr(FlMethodResponse) response =
@@ -115,20 +124,50 @@ static void invoke_dart_method_from_linux(FlMethodChannel* fl_channel,
       nullptr);
 }
 
+static void send_event_from_linux(FlEventChannel* channel) {
+  if (!is_send_events) {
+    return;
+  }
+
+  g_autoptr(FlValue) event = fl_value_new_map();
+  fl_value_set_string_take(event, "type", fl_value_new_string("FromLinux"));
+  fl_value_set_string_take(event, "time", fl_value_new_int(time(nullptr)));
+
+  fl_event_channel_send(channel, event, nullptr, nullptr);
+}
+
 static gboolean timer_callback(gpointer user_data) {
   static int count = 0;
-  auto fl_channel = static_cast<FlMethodChannel*>(user_data);
+  PlatformProxyPlugin* self = PLATFORM_PROXY_PLUGIN(user_data);
   fprintf(stderr, "[linux] %s: count=%d\n", __func__, count);
 
   switch (count++) {
-    case 0: {
-      invoke_dart_method_from_linux(fl_channel, 1, 2.22, "3");
+    case 0:
+      invoke_dart_method_from_linux(self->method_channel, 1, 2.22, "3");
       return TRUE;
-    }
+    case 1:
+    case 2:
+    case 3:
+      send_event_from_linux(self->event_channel);
+      return TRUE;
     default:
-      g_object_unref(fl_channel);
+      g_object_unref(self);
       return FALSE;
   }
+}
+
+static FlMethodErrorResponse* event_channel_listen_cb(FlEventChannel* channel,
+                                                      FlValue* args,
+                                                      gpointer user_data) {
+  is_send_events = true;
+  return NULL;
+}
+
+static FlMethodErrorResponse* event_channel_cancel_cb(FlEventChannel* channel,
+                                                      FlValue* args,
+                                                      gpointer user_data) {
+  is_send_events = false;
+  return NULL;
 }
 
 void platform_proxy_plugin_register_with_registrar(
@@ -137,12 +176,23 @@ void platform_proxy_plugin_register_with_registrar(
       g_object_new(platform_proxy_plugin_get_type(), nullptr));
 
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  plugin->channel = fl_method_channel_new(
+  plugin->method_channel = fl_method_channel_new(
       fl_plugin_registrar_get_messenger(registrar),
-      "xyz.takeoverjp.example/platform_proxy", FL_METHOD_CODEC(codec));
+      "xyz.takeoverjp.example/platform_proxy_method_channel",
+      FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
-      plugin->channel, method_call_cb, g_object_ref(plugin), g_object_unref);
-  g_timeout_add_seconds(1, timer_callback, g_object_ref(plugin->channel));
+      plugin->method_channel, method_call_cb, g_object_ref(plugin),
+      g_object_unref);
+
+  plugin->event_channel = fl_event_channel_new(
+      fl_plugin_registrar_get_messenger(registrar),
+      "xyz.takeoverjp.example/platform_proxy_event_channel",
+      FL_METHOD_CODEC(codec));
+  fl_event_channel_set_stream_handlers(
+      plugin->event_channel, event_channel_listen_cb, event_channel_cancel_cb,
+      nullptr, nullptr);
+
+  g_timeout_add_seconds(1, timer_callback, g_object_ref(plugin));
 
   g_object_unref(plugin);
 }

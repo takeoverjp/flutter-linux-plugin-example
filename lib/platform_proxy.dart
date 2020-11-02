@@ -3,18 +3,23 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 class PlatformProxy {
-  static const MethodChannel _channel =
-      const MethodChannel('xyz.takeoverjp.example/platform_proxy');
+  static const MethodChannel _methodChannel = const MethodChannel(
+      'xyz.takeoverjp.example/platform_proxy_method_channel');
+
+  static const EventChannel _eventChannel =
+      const EventChannel('xyz.takeoverjp.example/platform_proxy_event_channel');
+  static StreamSubscription _streamSubscription;
 
   static Future<String> get platformVersion async {
-    final String version = await _channel.invokeMethod('getPlatformVersion');
+    final String version =
+        await _methodChannel.invokeMethod('getPlatformVersion');
     return version;
   }
 
   static Future<int> invokeLinuxMethodFromDart(
       int int_arg, double double_arg, String string_arg) async {
     print('[dart] invoke invokeLinuxMethodFromDart');
-    final int result = await _channel.invokeMethod(
+    final int result = await _methodChannel.invokeMethod(
         'invokeLinuxMethodFromDart', <String, dynamic>{
       'int_arg': int_arg,
       'double_arg': double_arg,
@@ -46,7 +51,17 @@ class PlatformProxy {
     }
   }
 
+  static void _enableEventReceiver() {
+    _streamSubscription =
+        _eventChannel.receiveBroadcastStream().listen((dynamic event) {
+      print('[dart] Received event: ${event}');
+    }, onError: (dynamic error) {
+      print('[dart] Received error: ${error.message}');
+    }, cancelOnError: true);
+  }
+
   static void init() {
-    _channel.setMethodCallHandler(_platformCallHandler);
+    _methodChannel.setMethodCallHandler(_platformCallHandler);
+    _enableEventReceiver();
   }
 }

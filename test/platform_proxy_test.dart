@@ -4,7 +4,7 @@ import 'package:platform_proxy/platform_proxy.dart';
 
 void main() {
   const MethodChannel channel =
-      MethodChannel('xyz.takeoverjp.example/platform_proxy');
+      MethodChannel('xyz.takeoverjp.example/platform_proxy_method_channel');
 
   TestWidgetsFlutterBinding.ensureInitialized();
 
