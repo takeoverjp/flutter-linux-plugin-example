@@ -13,6 +13,7 @@ class PlatformProxy {
 
   static Future<int> invokeLinuxMethodFromDart(
       int int_arg, double double_arg, String string_arg) async {
+    print('[dart] invoke invokeLinuxMethodFromDart');
     final int result = await _channel.invokeMethod(
         'invokeLinuxMethodFromDart', <String, dynamic>{
       'int_arg': int_arg,
