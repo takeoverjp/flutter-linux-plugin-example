@@ -17,7 +17,32 @@ struct _PlatformProxyPlugin {
 
 G_DEFINE_TYPE(PlatformProxyPlugin, platform_proxy_plugin, g_object_get_type())
 
-// Called when a method call is received from Flutter.
+static FlMethodResponse* get_platform_version(PlatformProxyPlugin* self, FlValue* args) {
+  struct utsname uname_data = {};
+
+  uname(&uname_data);
+
+  g_autofree gchar* version = g_strdup_printf("Linux %s", uname_data.version);
+  g_autoptr(FlValue) result = fl_value_new_string(version);
+  return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+}
+
+static FlMethodResponse* invoke_linux_method_from_dart(PlatformProxyPlugin* self, FlValue* args) {
+  FlValue* fl_int_arg = fl_value_lookup_string(args, "int_arg");
+  FlValue* fl_double_arg = fl_value_lookup_string(args, "double_arg");
+  FlValue* fl_string_arg = fl_value_lookup_string(args, "string_arg");
+  int int_arg = fl_value_get_int(fl_int_arg);
+  double double_arg = fl_value_get_float(fl_double_arg);
+  const gchar* string_arg = fl_value_get_string(fl_string_arg);
+
+  fprintf(stderr, "[linux] invokeLinuxMethodFromDart called with {int_arg: %d, double_arg: %f, string_arg: %s}\n", int_arg, double_arg, string_arg);
+  int result = int_arg + double_arg + strtol(string_arg, NULL, 10);
+  fprintf(stderr, "[linux] invokeLinuxMethodFromDart returns %d\n", result);
+
+  g_autoptr(FlValue) fl_result = fl_value_new_int(result);
+  return FL_METHOD_RESPONSE(fl_method_success_response_new(fl_result));
+}
+
 static void platform_proxy_plugin_handle_method_call(
     PlatformProxyPlugin* self, FlMethodCall* method_call) {
   g_autoptr(FlMethodResponse) response = nullptr;
@@ -26,21 +51,9 @@ static void platform_proxy_plugin_handle_method_call(
   FlValue* args = fl_method_call_get_args(method_call);
 
   if (strcmp(method, "getPlatformVersion") == 0) {
-    struct utsname uname_data = {};
-    uname(&uname_data);
-    g_autofree gchar* version = g_strdup_printf("Linux %s", uname_data.version);
-    g_autoptr(FlValue) result = fl_value_new_string(version);
-    response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+    response = get_platform_version(self, args);
   } else if (strcmp(method, "invokeLinuxMethodFromDart") == 0) {
-    FlValue* fl_int_arg = fl_value_lookup_string(args, "int_arg");
-    FlValue* fl_double_arg = fl_value_lookup_string(args, "double_arg");
-    FlValue* fl_string_arg = fl_value_lookup_string(args, "string_arg");
-    int int_arg = fl_value_get_int(fl_int_arg);
-    double double_arg = fl_value_get_float(fl_double_arg);
-    const gchar* string_arg = fl_value_get_string(fl_string_arg);
-    int result = int_arg + double_arg + strtol(string_arg, NULL, 10);
-    g_autoptr(FlValue) fl_result = fl_value_new_int(result);
-    response = FL_METHOD_RESPONSE(fl_method_success_response_new(fl_result));
+    response = invoke_linux_method_from_dart(self, args);
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }
@@ -62,8 +75,8 @@ static void platform_proxy_plugin_init(PlatformProxyPlugin* self) {}
 
 static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
                            gpointer user_data) {
-  PlatformProxyPlugin* plugin = PLATFORM_PROXY_PLUGIN(user_data);
-  platform_proxy_plugin_handle_method_call(plugin, method_call);
+  PlatformProxyPlugin* self = PLATFORM_PROXY_PLUGIN(user_data);
+  platform_proxy_plugin_handle_method_call(self, method_call);
 }
 
 static void invoke_dart_method_from_linux(FlMethodChannel* fl_channel,

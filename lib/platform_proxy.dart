@@ -24,17 +24,21 @@ class PlatformProxy {
     return result;
   }
 
+  static Future<dynamic> invokeDartMethodFromLinux(dynamic args) async {
+    print('[dart] invokeDartMethodFromLinux called with ${args}');
+    final int result = args['int_arg'] +
+        args['double_arg'].toInt() +
+        int.parse(args['string_arg']);
+    print('[dart] invokeDartMethodFromLinux returns ${result}');
+    return Future.value(result);
+    //return Future.error('error message!!');
+  }
+
   static Future<dynamic> _platformCallHandler(MethodCall call) async {
+    final args = call.arguments;
     switch (call.method) {
       case 'invokeDartMethodFromLinux':
-        print('[dart] invokeDartMethodFromLinux called with ${call.arguments}');
-        final args = call.arguments;
-        final int result = args['int_arg'] +
-            args['double_arg'].toInt() +
-            int.parse(args['string_arg']);
-        print('[dart] invokeDartMethodFromLinux returns ${result}');
-        return Future.value(result);
-      //return Future.error('error message!!');
+        return invokeDartMethodFromLinux(args);
       default:
         print('[dart] Unknowm method ${call.method}');
         throw MissingPluginException();
