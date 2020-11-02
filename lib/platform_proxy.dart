@@ -17,13 +17,13 @@ class PlatformProxy {
   }
 
   static Future<int> invokeLinuxMethodFromDart(
-      int int_arg, double double_arg, String string_arg) async {
+      int intArg, double doubleArg, String stringArg) async {
     print('[dart] invoke invokeLinuxMethodFromDart');
     final int result = await _methodChannel.invokeMethod(
         'invokeLinuxMethodFromDart', <String, dynamic>{
-      'int_arg': int_arg,
-      'double_arg': double_arg,
-      'string_arg': string_arg
+      'intArg': intArg,
+      'doubleArg': doubleArg,
+      'stringArg': stringArg
     });
     print('[dart] invokeLinuxMethodFromDart returns ${result}');
     return result;
@@ -31,9 +31,9 @@ class PlatformProxy {
 
   static Future<dynamic> invokeDartMethodFromLinux(dynamic args) async {
     print('[dart] invokeDartMethodFromLinux called with ${args}');
-    final int result = args['int_arg'] +
-        args['double_arg'].toInt() +
-        int.parse(args['string_arg']);
+    final int result = args['intArg'] +
+        args['doubleArg'].toInt() +
+        int.parse(args['stringArg']);
     print('[dart] invokeDartMethodFromLinux returns ${result}');
     return Future.value(result);
     //return Future.error('error message!!');

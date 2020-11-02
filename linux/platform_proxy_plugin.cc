@@ -34,16 +34,16 @@ static FlMethodResponse* get_platform_version(PlatformProxyPlugin* self,
 
 static FlMethodResponse* invoke_linux_method_from_dart(
     PlatformProxyPlugin* self, FlValue* args) {
-  FlValue* fl_int_arg = fl_value_lookup_string(args, "int_arg");
-  FlValue* fl_double_arg = fl_value_lookup_string(args, "double_arg");
-  FlValue* fl_string_arg = fl_value_lookup_string(args, "string_arg");
+  FlValue* fl_int_arg = fl_value_lookup_string(args, "intArg");
+  FlValue* fl_double_arg = fl_value_lookup_string(args, "doubleArg");
+  FlValue* fl_string_arg = fl_value_lookup_string(args, "stringArg");
   int int_arg = fl_value_get_int(fl_int_arg);
   double double_arg = fl_value_get_float(fl_double_arg);
   const gchar* string_arg = fl_value_get_string(fl_string_arg);
 
   fprintf(stderr,
-          "[linux] invokeLinuxMethodFromDart called with {int_arg: %d, "
-          "double_arg: %f, string_arg: %s}\n",
+          "[linux] invokeLinuxMethodFromDart called with {intArg: %d, "
+          "doubleArg: %f, stringArg: %s}\n",
           int_arg, double_arg, string_arg);
   int result = int_arg + double_arg + strtol(string_arg, NULL, 10);
   fprintf(stderr, "[linux] invokeLinuxMethodFromDart returns %d\n", result);
@@ -93,9 +93,9 @@ static void invoke_dart_method_from_linux(FlMethodChannel* channel, int int_arg,
                                           double double_arg,
                                           const gchar* string_arg) {
   g_autoptr(FlValue) args = fl_value_new_map();
-  fl_value_set_string_take(args, "int_arg", fl_value_new_int(int_arg));
-  fl_value_set_string_take(args, "double_arg", fl_value_new_float(double_arg));
-  fl_value_set_string_take(args, "string_arg", fl_value_new_string(string_arg));
+  fl_value_set_string_take(args, "intArg", fl_value_new_int(int_arg));
+  fl_value_set_string_take(args, "doubleArg", fl_value_new_float(double_arg));
+  fl_value_set_string_take(args, "stringArg", fl_value_new_string(string_arg));
 
   fprintf(stderr, "[linux] invoke invokeDartMethodFromLinux\n");
 
@@ -183,8 +183,8 @@ static void invoke_linux_method_by_pigeon (FlBasicMessageChannel* channel,
   const gchar* string_arg = fl_value_get_string(fl_string_arg);
 
   fprintf(stderr,
-          "[linux] invokeLinuxMethodFromPigeon called with {int_arg: %d, "
-          "double_arg: %f, string_arg: %s}\n",
+          "[linux] invokeLinuxMethodFromPigeon called with {intArg: %d, "
+          "doubleArg: %f, stringArg: %s}\n",
           int_arg, double_arg, string_arg);
   int result = int_arg + double_arg + strtol(string_arg, NULL, 10);
   fprintf(stderr, "[linux] invokeLinuxMethodFromPigeon returns %d\n", result);
@@ -227,7 +227,6 @@ void platform_proxy_plugin_register_with_registrar(
       fl_plugin_registrar_get_messenger(registrar),
       "dev.flutter.pigeon.PigeonPlatformProxy.invokeLinuxMethodByPigeon",
       FL_MESSAGE_CODEC(message_codec));
-  fprintf(stderr, "[linux] basic_message_channel = %p\n", plugin->basic_message_channel);
   fl_basic_message_channel_set_message_handler(
       plugin->basic_message_channel, invoke_linux_method_by_pigeon,
       nullptr, nullptr);

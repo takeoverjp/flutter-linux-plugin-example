@@ -15,9 +15,9 @@ void main() {
       if (method == 'getPlatformVersion') {
         return '42';
       } else if (method == 'invokeLinuxMethodFromDart') {
-        return args['int_arg'] +
-            args['double_arg'].toInt() +
-            int.parse(args['string_arg']);
+        return args['intArg'] +
+            args['doubleArg'].toInt() +
+            int.parse(args['stringArg']);
       }
     });
   });
