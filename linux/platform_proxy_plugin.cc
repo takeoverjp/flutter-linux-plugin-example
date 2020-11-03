@@ -183,11 +183,11 @@ static void invoke_linux_method_by_pigeon (FlBasicMessageChannel* channel,
   const gchar* string_arg = fl_value_get_string(fl_string_arg);
 
   fprintf(stderr,
-          "[linux] invokeLinuxMethodFromPigeon called with {intArg: %d, "
+          "[linux] invokeLinuxMethodByPigeon called with {intArg: %d, "
           "doubleArg: %f, stringArg: %s}\n",
           int_arg, double_arg, string_arg);
   int result = int_arg + double_arg + strtol(string_arg, NULL, 10);
-  fprintf(stderr, "[linux] invokeLinuxMethodFromPigeon returns %d\n", result);
+  fprintf(stderr, "[linux] invokeLinuxMethodByPigeon returns %d\n", result);
 
   g_autoptr(FlValue) response = fl_value_new_map();
   g_autoptr(FlValue) fl_result = fl_value_new_map();
