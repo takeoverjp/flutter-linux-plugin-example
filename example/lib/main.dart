@@ -17,6 +17,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String _platformVersion = 'Unknown';
   int _result = 0;
+  int _pigeonResult = 0;
 
   @override
   void initState() {
@@ -28,24 +29,25 @@ class _MyAppState extends State<MyApp> {
   Future<void> initPlatformState() async {
     String platformVersion;
     int result = 0;
+    PigeonReply reply;
 
     PlatformProxy.init();
     // Platform messages may fail, so we use a try/catch PlatformException.
     try {
       platformVersion = await PlatformProxy.platformVersion;
+
       result = await PlatformProxy.invokeLinuxMethodFromDart(1, 2.22, '3');
+
+      var pigeon = PigeonPlatformProxy();
+      final request = PigeonRequest()
+        ..intArg = 1
+        ..doubleArg = 2.22
+        ..stringArg = '3';
+      reply = await pigeon.invokeLinuxMethodByPigeon(request);
+      print('[dart] invokeLinuxMethodByPigeon returns ${reply.result}');
     } on PlatformException {
       platformVersion = 'Failed to get platform version.';
     }
-
-    var pigeon = PigeonPlatformProxy();
-    final request = PigeonRequest()
-      ..intArg = 1
-      ..doubleArg = 2.22
-      ..stringArg = '3';
-    PigeonReply reply = await pigeon.invokeLinuxMethodByPigeon(request);
-    print(
-        '[dart] PlatformProxyPigeon#invokeLinuxMethodByPigeon returns ${reply.result}');
 
     // If the widget was removed from the tree while the asynchronous platform
     // message was in flight, we want to discard the reply rather than calling
@@ -55,6 +57,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _platformVersion = platformVersion;
       _result = result;
+      _pigeonResult = reply.result;
     });
   }
 
@@ -67,7 +70,8 @@ class _MyAppState extends State<MyApp> {
         ),
         body: Center(
           child: Text('Running on: $_platformVersion\n'
-              'invokeLinuxMethodFromDart(1, 2.22f, "3"): $_result\n'),
+              'invokeLinuxMethodFromDart(1, 2.22f, "3"): $_result\n'
+              'invokeLinuxMethodByPigeon({1, 2.22f, "3"}): $_pigeonResult\n'),
         ),
       ),
     );
