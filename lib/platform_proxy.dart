@@ -4,10 +4,10 @@ import 'package:flutter/services.dart';
 
 class PlatformProxy {
   static const MethodChannel _methodChannel = const MethodChannel(
-      'xyz.takeoverjp.example/platform_proxy_method_channel');
+      'xyz.takeoverjp.example/platform_proxy/method_channel');
 
   static const EventChannel _eventChannel =
-      const EventChannel('xyz.takeoverjp.example/platform_proxy_event_channel');
+      const EventChannel('xyz.takeoverjp.example/platform_proxy/event_channel');
   static StreamSubscription _streamSubscription;
 
   static Future<String> get platformVersion async {

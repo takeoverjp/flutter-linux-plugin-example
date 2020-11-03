@@ -208,7 +208,7 @@ void platform_proxy_plugin_register_with_registrar(
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   plugin->method_channel = fl_method_channel_new(
       fl_plugin_registrar_get_messenger(registrar),
-      "xyz.takeoverjp.example/platform_proxy_method_channel",
+      "xyz.takeoverjp.example/platform_proxy/method_channel",
       FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
       plugin->method_channel, method_call_cb, g_object_ref(plugin),
@@ -216,7 +216,7 @@ void platform_proxy_plugin_register_with_registrar(
 
   plugin->event_channel = fl_event_channel_new(
       fl_plugin_registrar_get_messenger(registrar),
-      "xyz.takeoverjp.example/platform_proxy_event_channel",
+      "xyz.takeoverjp.example/platform_proxy/event_channel",
       FL_METHOD_CODEC(codec));
   fl_event_channel_set_stream_handlers(
       plugin->event_channel, event_channel_listen_cb, event_channel_cancel_cb,
